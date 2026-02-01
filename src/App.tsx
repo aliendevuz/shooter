@@ -6,8 +6,18 @@ function App() {
   const [showGyroPrompt, setShowGyroPrompt] = useState(false);
 
   useEffect(() => {
-    // Check if iOS and needs permission
-    if (typeof DeviceOrientationEvent !== "undefined" && 
+    // Initialize Telegram WebApp
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      tg.disableVerticalSwipes?.();
+      console.log("Telegram WebApp initialized");
+    }
+    
+    // Check if iOS and needs permission (non-Telegram environment)
+    if (!tg && 
+        typeof DeviceOrientationEvent !== "undefined" && 
         typeof (DeviceOrientationEvent as any).requestPermission === "function") {
       setShowGyroPrompt(true);
     } else {

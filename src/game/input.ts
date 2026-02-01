@@ -11,6 +11,28 @@ export const tilt = {
 // Touch shooting
 export let shootRequested = false;
 
+// Telegram WebApp instance
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: {
+        ready: () => void;
+        expand: () => void;
+        disableVerticalSwipes: () => void;
+        DeviceOrientation: {
+          start: (params: { refresh_rate?: number; need_absolute?: boolean }, callback?: (result: boolean) => void) => void;
+          stop: (callback?: (result: boolean) => void) => void;
+          isStarted: boolean;
+          absolute: boolean;
+          alpha: number | null;
+          beta: number | null;
+          gamma: number | null;
+        };
+      };
+    };
+  }
+}
+
 // Clear all keys on window blur/focus loss
 window.addEventListener("blur", () => {
   Object.keys(keys).forEach(key => {
@@ -32,13 +54,54 @@ window.addEventListener("keyup", (e: KeyboardEvent) => {
 
 // Gyroscope support
 export function enableGyroscope() {
+  const tg = window.Telegram?.WebApp;
+  
+  if (tg && tg.DeviceOrientation) {
+    // Telegram Mini App gyroscope
+    tg.DeviceOrientation.start({ refresh_rate: 60 }, (started) => {
+      if (started) {
+        tilt.enabled = true;
+        console.log("Telegram gyroscope enabled");
+        startGyroscopeLoop();
+      } else {
+        console.log("Telegram gyroscope failed to start");
+        fallbackGyroscope();
+      }
+    });
+  } else {
+    // Fallback to native browser gyroscope
+    console.log("Telegram SDK not available, using native gyroscope");
+    fallbackGyroscope();
+  }
+}
+
+function startGyroscopeLoop() {
+  const tg = window.Telegram?.WebApp;
+  if (!tg || !tg.DeviceOrientation) return;
+  
+  setInterval(() => {
+    const gamma = tg.DeviceOrientation.gamma;
+    const beta = tg.DeviceOrientation.beta;
+    
+    if (gamma !== null && beta !== null) {
+      // Normalize to -1 to 1 range
+      tilt.x = Math.max(-1, Math.min(1, gamma / 30));
+      
+      // Adjust for device held upright
+      const adjustedBeta = beta - 90;
+      tilt.y = Math.max(-1, Math.min(1, adjustedBeta / 30));
+    }
+  }, 16); // ~60fps
+}
+
+function fallbackGyroscope() {
   if (typeof DeviceOrientationEvent !== "undefined") {
     // Request permission for iOS 13+
     if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
       (DeviceOrientationEvent as any).requestPermission()
         .then((response: string) => {
           if (response === "granted") {
-            setupGyroscope();
+            setupNativeGyroscope();
           }
         })
         .catch((error: Error) => {
@@ -46,25 +109,19 @@ export function enableGyroscope() {
         });
     } else {
       // Non-iOS or older iOS
-      setupGyroscope();
+      setupNativeGyroscope();
     }
   }
 }
 
-function setupGyroscope() {
+function setupNativeGyroscope() {
   tilt.enabled = true;
   
   window.addEventListener("deviceorientation", (e: DeviceOrientationEvent) => {
     if (e.beta !== null && e.gamma !== null) {
-      // Beta: front-back tilt (-180 to 180)
-      // Gamma: left-right tilt (-90 to 90)
-      
       // Normalize to -1 to 1 range
-      // Gamma: negative = left, positive = right
       tilt.x = Math.max(-1, Math.min(1, (e.gamma || 0) / 30));
       
-      // Beta: negative = forward, positive = backward
-      // Adjust for device held upright (around 90 degrees)
       const adjustedBeta = (e.beta || 0) - 90;
       tilt.y = Math.max(-1, Math.min(1, adjustedBeta / 30));
     }

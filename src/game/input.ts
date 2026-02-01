@@ -1,11 +1,11 @@
 
 export const keys: Record<string, boolean> = {};
 
-// Mobile gyroscope tilt values
+// Mobile accelerometer tilt values
 export const tilt = {
   x: 0, // Left/Right tilt (-1 to 1)
   y: 0, // Forward/Backward tilt (-1 to 1)
-  z: 0, // Z-axis rotation
+  z: 0, // Z-axis
   enabled: false
 };
 
@@ -85,26 +85,26 @@ export function enableGyroscope() {
     console.log("Telegram WebApp detected:", {
       platform: tg.platform,
       version: tg.version,
-      gyroscope: !!tg.Gyroscope
+      accelerometer: !!tg.Accelerometer
     });
     
-    if (tg.Gyroscope) {
-      // Telegram Mini App gyroscope
-      tg.Gyroscope.start({ refresh_rate: 60 }, (started) => {
+    if (tg.Accelerometer) {
+      // Telegram Mini App accelerometer
+      tg.Accelerometer.start({ refresh_rate: 60 }, (started) => {
         if (started) {
           tilt.enabled = true;
-          debugInfo.gyroscopeStatus = "Started (Telegram)";
-          console.log("✅ Telegram Gyroscope started");
-          startTelegramGyroscopeLoop();
+          debugInfo.gyroscopeStatus = "Started (Telegram Accelerometer)";
+          console.log("✅ Telegram Accelerometer started");
+          startTelegramAccelerometerLoop();
         } else {
-          debugInfo.gyroscopeStatus = "Failed (Telegram)";
-          console.log("❌ Telegram Gyroscope failed");
+          debugInfo.gyroscopeStatus = "Failed (Telegram Accelerometer)";
+          console.log("❌ Telegram Accelerometer failed");
           fallbackGyroscope();
         }
       });
     } else {
       debugInfo.gyroscopeStatus = "Not Available (Telegram)";
-      console.log("⚠️ Telegram Gyroscope API not available");
+      console.log("⚠️ Telegram Accelerometer API not available");
       fallbackGyroscope();
     }
   } else {
@@ -117,29 +117,31 @@ export function enableGyroscope() {
   }
 }
 
-function startTelegramGyroscopeLoop() {
+function startTelegramAccelerometerLoop() {
   const tg = window.Telegram?.WebApp;
-  if (!tg || !tg.Gyroscope) return;
+  if (!tg || !tg.Accelerometer) return;
   
   setInterval(() => {
-    const x = tg.Gyroscope.x;
-    const y = tg.Gyroscope.y;
-    const z = tg.Gyroscope.z;
+    const x = tg.Accelerometer.x;
+    const y = tg.Accelerometer.y;
+    const z = tg.Accelerometer.z;
     
     if (x !== null && y !== null && z !== null) {
       debugInfo.rawGyro = { x, y, z };
       debugInfo.lastGyroUpdate = Date.now();
       
-      // Convert rotation rate (rad/s) to tilt values
-      // x: rotation around X-axis (pitch)
-      // y: rotation around Y-axis (roll)
-      // z: rotation around Z-axis (yaw)
+      // Convert acceleration (m/s²) to tilt values
+      // x: left/right tilt
+      // y: forward/backward tilt
+      // z: up/down (gravity ~9.8 m/s²)
       
-      // Use Y-axis (roll) for left/right movement
-      tilt.x = Math.max(-1, Math.min(1, y * 2));
+      const maxTilt = 5; // m/s² threshold
       
-      // Use X-axis (pitch) for up/down movement
-      tilt.y = Math.max(-1, Math.min(1, x * 2));
+      // X acceleration for left/right movement
+      tilt.x = Math.max(-1, Math.min(1, x / maxTilt));
+      
+      // Y acceleration for up/down movement  
+      tilt.y = Math.max(-1, Math.min(1, y / maxTilt));
       
       tilt.z = z;
     }
@@ -147,51 +149,57 @@ function startTelegramGyroscopeLoop() {
 }
 
 function fallbackGyroscope() {
-  if (typeof DeviceOrientationEvent !== "undefined") {
-    debugInfo.gyroscopeStatus = "Requesting Permission (Native)";
+  if (typeof DeviceMotionEvent !== "undefined") {
+    debugInfo.gyroscopeStatus = "Requesting Permission (Native Accelerometer)";
     
     // Request permission for iOS 13+
-    if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
-      (DeviceOrientationEvent as any).requestPermission()
+    if (typeof (DeviceMotionEvent as any).requestPermission === "function") {
+      (DeviceMotionEvent as any).requestPermission()
         .then((response: string) => {
           if (response === "granted") {
-            debugInfo.gyroscopeStatus = "Granted (Native)";
-            setupNativeGyroscope();
+            debugInfo.gyroscopeStatus = "Granted (Native Accelerometer)";
+            setupNativeAccelerometer();
           } else {
             debugInfo.gyroscopeStatus = "Denied (Native)";
           }
         })
         .catch((error: Error) => {
           debugInfo.gyroscopeStatus = "Error (Native)";
-          console.error("Gyroscope permission denied:", error);
+          console.error("Accelerometer permission denied:", error);
         });
     } else {
       // Non-iOS or older iOS
-      debugInfo.gyroscopeStatus = "Auto-granted (Native)";
-      setupNativeGyroscope();
+      debugInfo.gyroscopeStatus = "Auto-granted (Native Accelerometer)";
+      setupNativeAccelerometer();
     }
   } else {
     debugInfo.gyroscopeStatus = "Not Supported";
   }
 }
 
-function setupNativeGyroscope() {
+function setupNativeAccelerometer() {
   tilt.enabled = true;
   
-  window.addEventListener("deviceorientation", (e: DeviceOrientationEvent) => {
-    if (e.beta !== null && e.gamma !== null) {
+  window.addEventListener("devicemotion", (e: DeviceMotionEvent) => {
+    const accel = e.accelerationIncludingGravity;
+    
+    if (accel && accel.x !== null && accel.y !== null && accel.z !== null) {
       debugInfo.rawGyro = { 
-        x: e.beta, 
-        y: e.gamma, 
-        z: e.alpha || 0 
+        x: accel.x, 
+        y: accel.y, 
+        z: accel.z 
       };
       debugInfo.lastGyroUpdate = Date.now();
       
-      // Normalize to -1 to 1 range
-      tilt.x = Math.max(-1, Math.min(1, (e.gamma || 0) / 30));
+      const maxTilt = 5; // m/s² threshold
       
-      const adjustedBeta = (e.beta || 0) - 90;
-      tilt.y = Math.max(-1, Math.min(1, adjustedBeta / 30));
+      // X acceleration for left/right movement
+      tilt.x = Math.max(-1, Math.min(1, accel.x / maxTilt));
+      
+      // Y acceleration for up/down movement
+      tilt.y = Math.max(-1, Math.min(1, accel.y / maxTilt));
+      
+      tilt.z = accel.z;
     }
   });
 }

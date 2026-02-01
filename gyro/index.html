@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>Gyroscope Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f0f1e, #1a1a2e);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00ff41;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .section {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            color: #ffeb3b;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ffeb3b;
+            padding-bottom: 5px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            color: #aaa;
+            font-weight: bold;
+        }
+
+        .value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .value.success {
+            color: #00ff41;
+        }
+
+        .value.error {
+            color: #ff1744;
+        }
+
+        .value.warning {
+            color: #ffeb3b;
+        }
+
+        .big-value {
+            font-size: 48px;
+            text-align: center;
+            margin: 20px 0;
+            color: #00ff41;
+            text-shadow: 0 0 20px rgba(0, 255, 65, 0.8);
+        }
+
+        .visual-indicator {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #00ff41;
+        }
+
+        .ball {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #00ff41, #00cc34);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.8);
+            transition: transform 0.1s ease-out;
+        }
+
+        .axis-line {
+            position: absolute;
+            background: #333;
+        }
+
+        .axis-line.vertical {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+        }
+
+        .axis-line.horizontal {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+        }
+
+        .button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #00ff41, #00cc34);
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+        }
+
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        .button.secondary {
+            background: linear-gradient(135deg, #ffeb3b, #fbc02d);
+        }
+
+        .log {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 11px;
+            color: #0f0;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .timestamp {
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 GYROSCOPE TEST</h1>
+
+        <!-- Platform Info -->
+        <div class="section">
+            <div class="section-title">📱 Platform Info</div>
+            <div class="info-row">
+                <span class="label">Environment:</span>
+                <span class="value" id="env">Detecting...</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Platform:</span>
+                <span class="value" id="platform">Unknown</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Telegram SDK:</span>
+                <span class="value" id="tg-status">Checking...</span>
+            </div>
+            <div class="info-row">
+                <span class="label">User Agent:</span>
+                <span class="value" style="font-size: 10px; word-break: break-all;" id="ua">-</span>
+            </div>
+        </div>
+
+        <!-- Gyroscope Status -->
+        <div class="section">
+            <div class="section-title">🔄 Gyroscope Status</div>
+            <div class="info-row">
+                <span class="label">Status:</span>
+                <span class="value" id="gyro-status">Not Started</span>
+            </div>
+            <div class="info-row">
+                <span class="label">API Type:</span>
+                <span class="value" id="api-type">-</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Updates/sec:</span>
+                <span class="value" id="update-rate">0</span>
+            </div>
+            <button class="button" id="start-btn">🚀 Start Gyroscope</button>
+            <button class="button secondary" id="stop-btn" style="display: none;">⏹️ Stop Gyroscope</button>
+        </div>
+
+        <!-- Visual Indicator -->
+        <div class="section">
+            <div class="section-title">🎮 Visual Tilt</div>
+            <div class="visual-indicator">
+                <div class="axis-line vertical"></div>
+                <div class="axis-line horizontal"></div>
+                <div class="ball" id="ball"></div>
+            </div>
+        </div>
+
+        <!-- Gyroscope Values -->
+        <div class="section">
+            <div class="section-title">📊 Raw Values</div>
+            <div class="info-row">
+                <span class="label">X (Pitch):</span>
+                <span class="value" id="gyro-x">0.00</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Y (Roll):</span>
+                <span class="value" id="gyro-y">0.00</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Z (Yaw):</span>
+                <span class="value" id="gyro-z">0.00</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Last Update:</span>
+                <span class="value" id="last-update">Never</span>
+            </div>
+        </div>
+
+        <!-- Event Log -->
+        <div class="section">
+            <div class="section-title">📝 Event Log</div>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Log function
+        const logContainer = document.getElementById('log');
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff1744' : type === 'success' ? '#00ff41' : '#0f0';
+            logContainer.innerHTML = `<div class="log-entry"><span class="timestamp">[${timestamp}]</span> <span style="color: ${color}">${message}</span></div>` + logContainer.innerHTML;
+            console.log(message);
+        }
+
+        // State
+        let updateCount = 0;
+        let lastUpdateTime = 0;
+        let updateRateInterval;
+
+        // Initialize
+        function init() {
+            // Platform detection
+            const ua = navigator.userAgent;
+            document.getElementById('ua').textContent = ua;
+
+            // Check Telegram
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                document.getElementById('env').textContent = 'Telegram Mini App';
+                document.getElementById('env').classList.add('success');
+                document.getElementById('platform').textContent = tg.platform || 'Unknown';
+                document.getElementById('tg-status').textContent = '✅ Available (v' + (tg.version || '?') + ')';
+                document.getElementById('tg-status').classList.add('success');
+                
+                tg.ready();
+                tg.expand();
+                log('Telegram WebApp initialized', 'success');
+            } else {
+                document.getElementById('env').textContent = 'Browser';
+                document.getElementById('env').classList.add('warning');
+                document.getElementById('platform').textContent = /iPhone|iPad|iPod/i.test(ua) ? 'iOS' : /Android/i.test(ua) ? 'Android' : 'Desktop';
+                document.getElementById('tg-status').textContent = '❌ Not Available';
+                document.getElementById('tg-status').classList.add('error');
+                log('Running in browser mode', 'info');
+            }
+
+            // Buttons
+            document.getElementById('start-btn').addEventListener('click', startGyroscope);
+            document.getElementById('stop-btn').addEventListener('click', stopGyroscope);
+        }
+
+        // Start gyroscope
+        function startGyroscope() {
+            log('Starting gyroscope...', 'info');
+            
+            const tg = window.Telegram?.WebApp;
+            
+            if (tg && tg.Gyroscope) {
+                // Telegram API
+                log('Using Telegram Gyroscope API', 'success');
+                document.getElementById('api-type').textContent = 'Telegram API';
+                
+                tg.Gyroscope.start({ refresh_rate: 60 }, (started) => {
+                    if (started) {
+                        log('✅ Telegram Gyroscope started successfully!', 'success');
+                        document.getElementById('gyro-status').textContent = 'Running (Telegram)';
+                        document.getElementById('gyro-status').classList.add('success');
+                        document.getElementById('start-btn').style.display = 'none';
+                        document.getElementById('stop-btn').style.display = 'block';
+                        startTelegramLoop();
+                        startUpdateRateMonitor();
+                    } else {
+                        log('❌ Failed to start Telegram Gyroscope', 'error');
+                        document.getElementById('gyro-status').textContent = 'Failed (Telegram)';
+                        document.getElementById('gyro-status').classList.add('error');
+                        fallbackToNative();
+                    }
+                });
+            } else {
+                // Native browser API
+                log('Telegram API not available, using native', 'info');
+                fallbackToNative();
+            }
+        }
+
+        // Telegram gyroscope loop
+        let telegramInterval;
+        function startTelegramLoop() {
+            const tg = window.Telegram.WebApp;
+            telegramInterval = setInterval(() => {
+                const x = tg.Gyroscope.x;
+                const y = tg.Gyroscope.y;
+                const z = tg.Gyroscope.z;
+                
+                if (x !== null && y !== null && z !== null) {
+                    updateValues(x, y, z);
+                    updateCount++;
+                }
+            }, 16);
+        }
+
+        // Native browser gyroscope
+        function fallbackToNative() {
+            document.getElementById('api-type').textContent = 'Native Browser';
+            
+            if (typeof DeviceOrientationEvent === 'undefined') {
+                log('❌ DeviceOrientation not supported', 'error');
+                document.getElementById('gyro-status').textContent = 'Not Supported';
+                document.getElementById('gyro-status').classList.add('error');
+                return;
+            }
+
+            // Check for iOS permission
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                log('Requesting iOS permission...', 'info');
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            log('✅ Permission granted', 'success');
+                            setupNativeListener();
+                        } else {
+                            log('❌ Permission denied', 'error');
+                            document.getElementById('gyro-status').textContent = 'Permission Denied';
+                            document.getElementById('gyro-status').classList.add('error');
+                        }
+                    })
+                    .catch(err => {
+                        log('❌ Permission error: ' + err.message, 'error');
+                    });
+            } else {
+                log('Auto-granting permission (Android/Desktop)', 'success');
+                setupNativeListener();
+            }
+        }
+
+        // Setup native listener
+        function setupNativeListener() {
+            log('✅ Setting up native DeviceOrientation listener', 'success');
+            document.getElementById('gyro-status').textContent = 'Running (Native)';
+            document.getElementById('gyro-status').classList.add('success');
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('stop-btn').style.display = 'block';
+            
+            window.addEventListener('deviceorientation', handleOrientation);
+            startUpdateRateMonitor();
+        }
+
+        function handleOrientation(event) {
+            // beta: x-axis (front to back) -180 to 180
+            // gamma: y-axis (left to right) -90 to 90
+            // alpha: z-axis (compass) 0 to 360
+            
+            const beta = event.beta;  // x
+            const gamma = event.gamma; // y
+            const alpha = event.alpha; // z
+            
+            if (beta !== null && gamma !== null) {
+                updateValues(beta, gamma, alpha || 0);
+                updateCount++;
+            }
+        }
+
+        // Update display values
+        function updateValues(x, y, z) {
+            document.getElementById('gyro-x').textContent = x.toFixed(2);
+            document.getElementById('gyro-y').textContent = y.toFixed(2);
+            document.getElementById('gyro-z').textContent = z.toFixed(2);
+            
+            const now = Date.now();
+            lastUpdateTime = now;
+            document.getElementById('last-update').textContent = 'Just now';
+            
+            // Update visual ball
+            const ball = document.getElementById('ball');
+            const maxTilt = 45; // degrees
+            const xOffset = Math.max(-85, Math.min(85, (y / maxTilt) * 85)); // gamma controls X position
+            const yOffset = Math.max(-85, Math.min(85, ((x - 90) / maxTilt) * 85)); // beta controls Y position
+            
+            ball.style.transform = `translate(calc(-50% + ${xOffset}px), calc(-50% + ${yOffset}px))`;
+        }
+
+        // Monitor update rate
+        function startUpdateRateMonitor() {
+            updateRateInterval = setInterval(() => {
+                document.getElementById('update-rate').textContent = updateCount;
+                updateCount = 0;
+                
+                // Check if still updating
+                if (Date.now() - lastUpdateTime > 2000) {
+                    document.getElementById('last-update').textContent = 
+                        Math.floor((Date.now() - lastUpdateTime) / 1000) + 's ago';
+                }
+            }, 1000);
+        }
+
+        // Stop gyroscope
+        function stopGyroscope() {
+            log('Stopping gyroscope...', 'info');
+            
+            const tg = window.Telegram?.WebApp;
+            if (tg && tg.Gyroscope && tg.Gyroscope.isStarted) {
+                tg.Gyroscope.stop(() => {
+                    log('Telegram Gyroscope stopped', 'info');
+                });
+                if (telegramInterval) clearInterval(telegramInterval);
+            }
+            
+            window.removeEventListener('deviceorientation', handleOrientation);
+            
+            if (updateRateInterval) clearInterval(updateRateInterval);
+            
+            document.getElementById('gyro-status').textContent = 'Stopped';
+            document.getElementById('gyro-status').classList.remove('success', 'error');
+            document.getElementById('start-btn').style.display = 'block';
+            document.getElementById('stop-btn').style.display = 'none';
+            
+            log('Gyroscope stopped', 'info');
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

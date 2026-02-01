@@ -1,0 +1,166 @@
+.game-area {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #0f0f1e;
+  flex: 1;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.player {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #00ff41, #00cc34);
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 4px;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.8);
+}
+
+.enemy {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #ff1744, #d50000);
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 23, 68, 0.8);
+}
+
+.projectile {
+  width: 6px;
+  height: 10px;
+  background-color: #ffeb3b;
+  position: absolute;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(255, 235, 59, 0.9);
+}
+
+.score-display {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: #00ff41;
+  font-size: 24px;
+  font-weight: bold;
+  font-family: monospace;
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+  z-index: 100;
+}
+
+.game-over-dialog {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.game-over-content {
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  padding: 60px 80px;
+  border-radius: 20px;
+  border: 3px solid #00ff41;
+  box-shadow: 0 0 40px rgba(0, 255, 65, 0.5);
+}
+
+.game-over-content h1 {
+  font-size: 64px;
+  margin: 0 0 20px 0;
+  color: #ff1744;
+  text-shadow: 0 0 20px rgba(255, 23, 68, 0.8);
+  font-family: monospace;
+  letter-spacing: 8px;
+}
+
+.final-score-label {
+  font-size: 20px;
+  color: #888;
+  margin: 10px 0 5px 0;
+  font-family: monospace;
+}
+
+.final-score {
+  font-size: 72px;
+  color: #00ff41;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(0, 255, 65, 0.8);
+  font-family: monospace;
+}
+
+.restart-hint {
+  font-size: 18px;
+  color: #ffeb3b;
+  margin-top: 30px;
+  animation: blink 1.5s infinite;
+  font-family: monospace;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.3; }
+}
+
+.gyro-prompt {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0f0f1e, #1a1a2e);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.gyro-prompt-content {
+  text-align: center;
+  color: #fff;
+  padding: 40px;
+}
+
+.gyro-prompt-content h2 {
+  font-size: 32px;
+  margin: 0 0 20px 0;
+  color: #00ff41;
+  font-family: monospace;
+}
+
+.gyro-prompt-content p {
+  font-size: 18px;
+  margin: 0 0 30px 0;
+  color: #888;
+  font-family: monospace;
+}
+
+.gyro-button {
+  background: linear-gradient(135deg, #00ff41, #00cc34);
+  color: #000;
+  border: none;
+  padding: 15px 40px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: monospace;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+  transition: transform 0.2s;
+}
+
+.gyro-button:active {
+  transform: scale(0.95);
+}

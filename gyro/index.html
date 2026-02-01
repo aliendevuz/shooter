@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <title>Gyroscope Test</title>
+    <title>Accelerometer Test</title>
     <style>
         * {
             margin: 0;
@@ -157,6 +157,81 @@
             background: linear-gradient(135deg, #ffeb3b, #fbc02d);
         }
 
+        .button.tertiary {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+        }
+
+        .level-indicator {
+            width: 100%;
+            height: 150px;
+            background: #000;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #00ff41;
+            margin-bottom: 15px;
+        }
+
+        .level-bubble {
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, #ffeb3b, #fbc02d);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(255, 235, 59, 0.8);
+            transition: all 0.1s ease-out;
+        }
+
+        .level-circle {
+            position: absolute;
+            border: 2px solid #00ff41;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .level-circle.inner {
+            width: 80px;
+            height: 80px;
+        }
+
+        .level-circle.outer {
+            width: 130px;
+            height: 130px;
+            border-color: #ffeb3b;
+        }
+
+        .level-status {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .level-status.perfect {
+            color: #00ff41;
+            border: 1px solid #00ff41;
+        }
+
+        .level-status.close {
+            color: #ffeb3b;
+            border: 1px solid #ffeb3b;
+        }
+
+        .level-status.off {
+            color: #ff1744;
+            border: 1px solid #ff1744;
+        }
+
         .log {
             background: #000;
             border: 1px solid #333;
@@ -179,7 +254,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎯 GYROSCOPE TEST</h1>
+        <h1>📱 ACCELEROMETER TEST</h1>
 
         <!-- Platform Info -->
         <div class="section">
@@ -202,12 +277,12 @@
             </div>
         </div>
 
-        <!-- Gyroscope Status -->
+        <!-- Accelerometer Status -->
         <div class="section">
-            <div class="section-title">🔄 Gyroscope Status</div>
+            <div class="section-title">⚡ Accelerometer Status</div>
             <div class="info-row">
                 <span class="label">Status:</span>
-                <span class="value" id="gyro-status">Not Started</span>
+                <span class="value" id="accel-status">Not Started</span>
             </div>
             <div class="info-row">
                 <span class="label">API Type:</span>
@@ -217,34 +292,40 @@
                 <span class="label">Updates/sec:</span>
                 <span class="value" id="update-rate">0</span>
             </div>
-            <button class="button" id="start-btn">🚀 Start Gyroscope</button>
-            <button class="button secondary" id="stop-btn" style="display: none;">⏹️ Stop Gyroscope</button>
+            <button class="button" id="start-btn">🚀 Start Accelerometer</button>
+            <button class="button secondary" id="stop-btn" style="display: none;">⏹️ Stop Accelerometer</button>
+            <button class="button tertiary" id="calibrate-btn" style="display: none; margin-top: 10px;">🎯 Calibrate Level</button>
         </div>
 
-        <!-- Visual Indicator -->
+        <!-- Level Indicator -->
         <div class="section">
-            <div class="section-title">🎮 Visual Tilt</div>
-            <div class="visual-indicator">
-                <div class="axis-line vertical"></div>
-                <div class="axis-line horizontal"></div>
-                <div class="ball" id="ball"></div>
+            <div class="section-title">🎯 Level Indicator</div>
+            <div class="level-indicator">
+                <div class="level-circle outer"></div>
+                <div class="level-circle inner"></div>
+                <div class="level-bubble" id="bubble"></div>
+                <div class="level-status off" id="level-status">Not Started</div>
+            </div>
+            <div class="info-row">
+                <span class="label">Tilt Angle:</span>
+                <span class="value" id="tilt-angle">0°</span>
             </div>
         </div>
 
-        <!-- Gyroscope Values -->
+        <!-- Accelerometer Values -->
         <div class="section">
-            <div class="section-title">📊 Raw Values</div>
+            <div class="section-title">📊 Raw Values (m/s²)</div>
             <div class="info-row">
-                <span class="label">X (Pitch):</span>
-                <span class="value" id="gyro-x">0.00</span>
+                <span class="label">X (Left/Right):</span>
+                <span class="value" id="accel-x">0.00</span>
             </div>
             <div class="info-row">
-                <span class="label">Y (Roll):</span>
-                <span class="value" id="gyro-y">0.00</span>
+                <span class="label">Y (Forward/Back):</span>
+                <span class="value" id="accel-y">0.00</span>
             </div>
             <div class="info-row">
-                <span class="label">Z (Yaw):</span>
-                <span class="value" id="gyro-z">0.00</span>
+                <span class="label">Z (Up/Down):</span>
+                <span class="value" id="accel-z">0.00</span>
             </div>
             <div class="info-row">
                 <span class="label">Last Update:</span>
@@ -273,6 +354,7 @@
         let updateCount = 0;
         let lastUpdateTime = 0;
         let updateRateInterval;
+        let calibrationOffset = { x: 0, y: 0, z: 0 };
 
         // Initialize
         function init() {
@@ -302,34 +384,36 @@
             }
 
             // Buttons
-            document.getElementById('start-btn').addEventListener('click', startGyroscope);
-            document.getElementById('stop-btn').addEventListener('click', stopGyroscope);
+            document.getElementById('start-btn').addEventListener('click', startAccelerometer);
+            document.getElementById('stop-btn').addEventListener('click', stopAccelerometer);
+            document.getElementById('calibrate-btn').addEventListener('click', calibrate);
         }
 
-        // Start gyroscope
-        function startGyroscope() {
-            log('Starting gyroscope...', 'info');
+        // Start accelerometer
+        function startAccelerometer() {
+            log('Starting accelerometer...', 'info');
             
             const tg = window.Telegram?.WebApp;
             
-            if (tg && tg.Gyroscope) {
+            if (tg && tg.Accelerometer) {
                 // Telegram API
-                log('Using Telegram Gyroscope API', 'success');
+                log('Using Telegram Accelerometer API', 'success');
                 document.getElementById('api-type').textContent = 'Telegram API';
                 
-                tg.Gyroscope.start({ refresh_rate: 60 }, (started) => {
+                tg.Accelerometer.start({ refresh_rate: 60 }, (started) => {
                     if (started) {
-                        log('✅ Telegram Gyroscope started successfully!', 'success');
-                        document.getElementById('gyro-status').textContent = 'Running (Telegram)';
-                        document.getElementById('gyro-status').classList.add('success');
+                        log('✅ Telegram Accelerometer started successfully!', 'success');
+                        document.getElementById('accel-status').textContent = 'Running (Telegram)';
+                        document.getElementById('accel-status').classList.add('success');
                         document.getElementById('start-btn').style.display = 'none';
                         document.getElementById('stop-btn').style.display = 'block';
+                        document.getElementById('calibrate-btn').style.display = 'block';
                         startTelegramLoop();
                         startUpdateRateMonitor();
                     } else {
-                        log('❌ Failed to start Telegram Gyroscope', 'error');
-                        document.getElementById('gyro-status').textContent = 'Failed (Telegram)';
-                        document.getElementById('gyro-status').classList.add('error');
+                        log('❌ Failed to start Telegram Accelerometer', 'error');
+                        document.getElementById('accel-status').textContent = 'Failed (Telegram)';
+                        document.getElementById('accel-status').classList.add('error');
                         fallbackToNative();
                     }
                 });
@@ -340,14 +424,14 @@
             }
         }
 
-        // Telegram gyroscope loop
+        // Telegram accelerometer loop
         let telegramInterval;
         function startTelegramLoop() {
             const tg = window.Telegram.WebApp;
             telegramInterval = setInterval(() => {
-                const x = tg.Gyroscope.x;
-                const y = tg.Gyroscope.y;
-                const z = tg.Gyroscope.z;
+                const x = tg.Accelerometer.x;
+                const y = tg.Accelerometer.y;
+                const z = tg.Accelerometer.z;
                 
                 if (x !== null && y !== null && z !== null) {
                     updateValues(x, y, z);
@@ -356,29 +440,29 @@
             }, 16);
         }
 
-        // Native browser gyroscope
+        // Native browser accelerometer
         function fallbackToNative() {
             document.getElementById('api-type').textContent = 'Native Browser';
             
-            if (typeof DeviceOrientationEvent === 'undefined') {
-                log('❌ DeviceOrientation not supported', 'error');
-                document.getElementById('gyro-status').textContent = 'Not Supported';
-                document.getElementById('gyro-status').classList.add('error');
+            if (typeof DeviceMotionEvent === 'undefined') {
+                log('❌ DeviceMotion not supported', 'error');
+                document.getElementById('accel-status').textContent = 'Not Supported';
+                document.getElementById('accel-status').classList.add('error');
                 return;
             }
 
             // Check for iOS permission
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 log('Requesting iOS permission...', 'info');
-                DeviceOrientationEvent.requestPermission()
+                DeviceMotionEvent.requestPermission()
                     .then(response => {
                         if (response === 'granted') {
                             log('✅ Permission granted', 'success');
                             setupNativeListener();
                         } else {
                             log('❌ Permission denied', 'error');
-                            document.getElementById('gyro-status').textContent = 'Permission Denied';
-                            document.getElementById('gyro-status').classList.add('error');
+                            document.getElementById('accel-status').textContent = 'Permission Denied';
+                            document.getElementById('accel-status').classList.add('error');
                         }
                     })
                     .catch(err => {
@@ -392,48 +476,79 @@
 
         // Setup native listener
         function setupNativeListener() {
-            log('✅ Setting up native DeviceOrientation listener', 'success');
-            document.getElementById('gyro-status').textContent = 'Running (Native)';
-            document.getElementById('gyro-status').classList.add('success');
+            log('✅ Setting up native DeviceMotion listener', 'success');
+            document.getElementById('accel-status').textContent = 'Running (Native)';
+            document.getElementById('accel-status').classList.add('success');
             document.getElementById('start-btn').style.display = 'none';
             document.getElementById('stop-btn').style.display = 'block';
+            document.getElementById('calibrate-btn').style.display = 'block';
             
-            window.addEventListener('deviceorientation', handleOrientation);
+            window.addEventListener('devicemotion', handleMotion);
             startUpdateRateMonitor();
         }
 
-        function handleOrientation(event) {
-            // beta: x-axis (front to back) -180 to 180
-            // gamma: y-axis (left to right) -90 to 90
-            // alpha: z-axis (compass) 0 to 360
+        function handleMotion(event) {
+            const accel = event.accelerationIncludingGravity;
             
-            const beta = event.beta;  // x
-            const gamma = event.gamma; // y
-            const alpha = event.alpha; // z
-            
-            if (beta !== null && gamma !== null) {
-                updateValues(beta, gamma, alpha || 0);
+            if (accel && accel.x !== null && accel.y !== null && accel.z !== null) {
+                updateValues(accel.x, accel.y, accel.z);
                 updateCount++;
             }
         }
 
+        // Calibration
+        function calibrate() {
+            const x = parseFloat(document.getElementById('accel-x').textContent);
+            const y = parseFloat(document.getElementById('accel-y').textContent);
+            const z = parseFloat(document.getElementById('accel-z').textContent);
+            
+            calibrationOffset = { x, y, z: z - 9.8 }; // Z should be ~9.8 when flat
+            log('📍 Calibrated! Offsets: X=' + x.toFixed(2) + ', Y=' + y.toFixed(2) + ', Z=' + (z - 9.8).toFixed(2), 'success');
+        }
+
         // Update display values
         function updateValues(x, y, z) {
-            document.getElementById('gyro-x').textContent = x.toFixed(2);
-            document.getElementById('gyro-y').textContent = y.toFixed(2);
-            document.getElementById('gyro-z').textContent = z.toFixed(2);
+            // Apply calibration
+            x -= calibrationOffset.x;
+            y -= calibrationOffset.y;
+            z -= calibrationOffset.z;
+            
+            document.getElementById('accel-x').textContent = x.toFixed(2);
+            document.getElementById('accel-y').textContent = y.toFixed(2);
+            document.getElementById('accel-z').textContent = z.toFixed(2);
             
             const now = Date.now();
             lastUpdateTime = now;
             document.getElementById('last-update').textContent = 'Just now';
             
-            // Update visual ball
-            const ball = document.getElementById('ball');
-            const maxTilt = 45; // degrees
-            const xOffset = Math.max(-85, Math.min(85, (y / maxTilt) * 85)); // gamma controls X position
-            const yOffset = Math.max(-85, Math.min(85, ((x - 90) / maxTilt) * 85)); // beta controls Y position
+            // Update level bubble
+            const bubble = document.getElementById('bubble');
+            const maxTilt = 5; // m/s²
             
-            ball.style.transform = `translate(calc(-50% + ${xOffset}px), calc(-50% + ${yOffset}px))`;
+            // X and Y accelerations determine bubble position
+            const xOffset = Math.max(-55, Math.min(55, (x / maxTilt) * 55));
+            const yOffset = Math.max(-55, Math.min(55, (y / maxTilt) * 55));
+            
+            bubble.style.transform = `translate(calc(-50% + ${xOffset}px), calc(-50% + ${yOffset}px))`;
+            
+            // Calculate tilt angle
+            const tiltAngle = Math.sqrt(x*x + y*y) * (180 / Math.PI) / 9.8 * 90;
+            document.getElementById('tilt-angle').textContent = tiltAngle.toFixed(1) + '°';
+            
+            // Update level status
+            const levelStatus = document.getElementById('level-status');
+            const distance = Math.sqrt(xOffset*xOffset + yOffset*yOffset);
+            
+            if (distance < 15) {
+                levelStatus.textContent = '✅ PERFECT LEVEL';
+                levelStatus.className = 'level-status perfect';
+            } else if (distance < 35) {
+                levelStatus.textContent = '⚠️ CLOSE';
+                levelStatus.className = 'level-status close';
+            } else {
+                levelStatus.textContent = '❌ NOT LEVEL';
+                levelStatus.className = 'level-status off';
+            }
         }
 
         // Monitor update rate
@@ -450,28 +565,29 @@
             }, 1000);
         }
 
-        // Stop gyroscope
-        function stopGyroscope() {
-            log('Stopping gyroscope...', 'info');
+        // Stop accelerometer
+        function stopAccelerometer() {
+            log('Stopping accelerometer...', 'info');
             
             const tg = window.Telegram?.WebApp;
-            if (tg && tg.Gyroscope && tg.Gyroscope.isStarted) {
-                tg.Gyroscope.stop(() => {
-                    log('Telegram Gyroscope stopped', 'info');
+            if (tg && tg.Accelerometer && tg.Accelerometer.isStarted) {
+                tg.Accelerometer.stop(() => {
+                    log('Telegram Accelerometer stopped', 'info');
                 });
                 if (telegramInterval) clearInterval(telegramInterval);
             }
             
-            window.removeEventListener('deviceorientation', handleOrientation);
+            window.removeEventListener('devicemotion', handleMotion);
             
             if (updateRateInterval) clearInterval(updateRateInterval);
             
-            document.getElementById('gyro-status').textContent = 'Stopped';
-            document.getElementById('gyro-status').classList.remove('success', 'error');
+            document.getElementById('accel-status').textContent = 'Stopped';
+            document.getElementById('accel-status').classList.remove('success', 'error');
             document.getElementById('start-btn').style.display = 'block';
             document.getElementById('stop-btn').style.display = 'none';
+            document.getElementById('calibrate-btn').style.display = 'none';
             
-            log('Gyroscope stopped', 'info');
+            log('Accelerometer stopped', 'info');
         }
 
         // Initialize on load

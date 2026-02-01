@@ -164,3 +164,69 @@
 .gyro-button:active {
   transform: scale(0.95);
 }
+
+.debug-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid #00ff41;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 11px;
+  z-index: 9999;
+  min-width: 280px;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+}
+
+.debug-header {
+  color: #00ff41;
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #00ff41;
+  padding-bottom: 5px;
+}
+
+.debug-hint {
+  color: #888;
+  font-size: 9px;
+  font-weight: normal;
+}
+
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.debug-label {
+  color: #aaa;
+  font-weight: bold;
+}
+
+.debug-value {
+  color: #fff;
+}
+
+.debug-value-success {
+  color: #00ff41;
+  font-weight: bold;
+}
+
+.debug-value-warning {
+  color: #ffeb3b;
+  font-weight: bold;
+}
+
+.debug-value-error {
+  color: #ff1744;
+  font-weight: bold;
+}
+
+.debug-value-small {
+  color: #ccc;
+  font-size: 10px;
+}

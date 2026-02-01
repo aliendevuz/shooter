@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { startGame, restartGame } from "./game";
+import { debugInfo, tilt } from "./game/input";
 import "./App.css";
 
 function App() {
   const [showGyroPrompt, setShowGyroPrompt] = useState(false);
+  const [showDebug, setShowDebug] = useState(true); // Debug mode default on
+  const [debugData, setDebugData] = useState(debugInfo);
 
   useEffect(() => {
     // Initialize Telegram WebApp
@@ -12,7 +15,11 @@ function App() {
       tg.ready();
       tg.expand();
       tg.disableVerticalSwipes?.();
-      console.log("Telegram WebApp initialized");
+      console.log("Telegram WebApp initialized:", {
+        platform: tg.platform,
+        version: tg.version,
+        initData: tg.initData
+      });
     }
     
     // Check if iOS and needs permission (non-Telegram environment)
@@ -24,6 +31,11 @@ function App() {
       startGame();
     }
     
+    // Debug data update loop
+    const debugInterval = setInterval(() => {
+      setDebugData({...debugInfo});
+    }, 100);
+    
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         const gameOverEl = document.getElementById("game-over");
@@ -31,10 +43,18 @@ function App() {
           restartGame();
         }
       }
+      
+      // Toggle debug with 'D' key
+      if (e.key === "d" || e.key === "D") {
+        setShowDebug(prev => !prev);
+      }
     };
     
     window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+      clearInterval(debugInterval);
+    };
   }, []);
 
   const handleStartWithGyro = () => {
@@ -59,6 +79,57 @@ function App() {
       <div className="game-area">
         <div id="player" className="player" />
         <div id="score" className="score-display">Score: 0</div>
+        
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="debug-panel">
+            <div className="debug-header">
+              🔧 DEBUG MODE <span className="debug-hint">(Press D to hide)</span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Platform:</span>
+              <span className={debugData.telegramSDK ? "debug-value-success" : "debug-value-warning"}>
+                {debugData.platform}
+              </span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Telegram SDK:</span>
+              <span className={debugData.telegramSDK ? "debug-value-success" : "debug-value-error"}>
+                {debugData.telegramSDK ? "✅ Active" : "❌ Not Available"}
+              </span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Gyroscope:</span>
+              <span className={tilt.enabled ? "debug-value-success" : "debug-value-warning"}>
+                {debugData.gyroscopeStatus}
+              </span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Tilt X:</span>
+              <span className="debug-value">{tilt.x.toFixed(3)}</span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Tilt Y:</span>
+              <span className="debug-value">{tilt.y.toFixed(3)}</span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Raw Gyro:</span>
+              <span className="debug-value-small">
+                X: {debugData.rawGyro.x.toFixed(2)} | 
+                Y: {debugData.rawGyro.y.toFixed(2)} | 
+                Z: {debugData.rawGyro.z.toFixed(2)}
+              </span>
+            </div>
+            <div className="debug-row">
+              <span className="debug-label">Last Update:</span>
+              <span className="debug-value-small">
+                {debugData.lastGyroUpdate > 0 ? 
+                  `${Date.now() - debugData.lastGyroUpdate}ms ago` : 
+                  "Never"}
+              </span>
+            </div>
+          </div>
+        )}
         
         <div id="game-over" className="game-over-dialog">
           <div className="game-over-content">

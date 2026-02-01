@@ -7,6 +7,11 @@ function ShooterGame() {
   const [showGyroPrompt, setShowGyroPrompt] = useState(false);
   const [showDebug, setShowDebug] = useState(true); // Debug mode default on
   const [debugData, setDebugData] = useState(debugInfo);
+  const [themeColors, setThemeColors] = useState({
+    bg: "#0f0f1e",
+    text: "#ffffff",
+    button: "#00ff41"
+  });
 
   useEffect(() => {
     // Initialize Telegram WebApp
@@ -15,6 +20,16 @@ function ShooterGame() {
       tg.ready();
       tg.expand();
       tg.disableVerticalSwipes?.();
+      
+      const bgColor = tg.backgroundColor || "#0f0f1e";
+      setThemeColors({
+        bg: bgColor,
+        text: tg.themeParams?.text_color || "#ffffff",
+        button: tg.themeParams?.button_color || "#00ff41"
+      });
+      
+      document.body.style.backgroundColor = bgColor;
+      
       console.log("Telegram WebApp initialized:", {
         platform: tg.platform,
         version: tg.version,
@@ -84,9 +99,9 @@ function ShooterGame() {
         </div>
       )}
       
-      <div className="game-area">
+      <div className="game-area" style={{ backgroundColor: themeColors.bg }}>
         <div id="player" className="player" />
-        <div id="score" className="score-display">Score: 0</div>
+        <div id="score" className="score-display" style={{ color: themeColors.button }}>Score: 0</div>
         
         {/* Debug Panel */}
         {showDebug && (

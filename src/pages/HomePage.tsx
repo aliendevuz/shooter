@@ -1,7 +1,39 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import "./HomePage.css";
 
 function HomePage() {
+  const [themeColors, setThemeColors] = useState({
+    bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    cardBg: "#ffffff",
+    text: "#333333",
+    secondaryText: "#666666",
+    button: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+  });
+
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      
+      const bgColor = tg.backgroundColor || "#ffffff";
+      const textColor = tg.themeParams?.text_color || "#000000";
+      const hintColor = tg.themeParams?.hint_color || "#999999";
+      const buttonColor = tg.themeParams?.button_color || "#007aff";
+      
+      setThemeColors({
+        bg: bgColor,
+        cardBg: tg.themeParams?.bg_color || "#ffffff",
+        text: textColor,
+        secondaryText: hintColor,
+        button: buttonColor
+      });
+
+      document.body.style.backgroundColor = bgColor;
+    }
+  }, []);
+
   const games = [
     {
       id: "shooter",
@@ -12,12 +44,12 @@ function HomePage() {
       status: "Available"
     },
     {
-      id: "runner",
-      title: "Endless Runner",
-      description: "Coming soon...",
-      icon: "🏃",
-      route: "#",
-      status: "Coming Soon"
+      id: "pingpong",
+      title: "Ping Pong",
+      description: "Classic paddle game. First to 5 wins!",
+      icon: "🏓",
+      route: "/pingpong",
+      status: "Available"
     },
     {
       id: "puzzle",
@@ -30,10 +62,10 @@ function HomePage() {
   ];
 
   return (
-    <div className="home-page">
+    <div className="home-page" style={{ background: themeColors.bg }}>
       <div className="home-header">
-        <h1 className="home-title">🎮 WebGames</h1>
-        <p className="home-subtitle">Choose your game</p>
+        <h1 className="home-title" style={{ color: themeColors.text }}>🎮 WebGames</h1>
+        <p className="home-subtitle" style={{ color: themeColors.secondaryText }}>Choose your game</p>
       </div>
       
       <div className="games-grid">
@@ -43,17 +75,18 @@ function HomePage() {
               key={game.id} 
               to={game.route} 
               className="game-card"
+              style={{ backgroundColor: themeColors.cardBg }}
             >
               <div className="game-icon">{game.icon}</div>
-              <h2 className="game-title">{game.title}</h2>
-              <p className="game-description">{game.description}</p>
-              <span className="game-status available">{game.status}</span>
+              <h2 className="game-title" style={{ color: themeColors.text }}>{game.title}</h2>
+              <p className="game-description" style={{ color: themeColors.secondaryText }}>{game.description}</p>
+              <span className="game-status available" style={{ background: themeColors.button, color: "#ffffff" }}>{game.status}</span>
             </Link>
           ) : (
-            <div key={game.id} className="game-card disabled">
+            <div key={game.id} className="game-card disabled" style={{ backgroundColor: themeColors.cardBg }}>
               <div className="game-icon">{game.icon}</div>
-              <h2 className="game-title">{game.title}</h2>
-              <p className="game-description">{game.description}</p>
+              <h2 className="game-title" style={{ color: themeColors.text }}>{game.title}</h2>
+              <p className="game-description" style={{ color: themeColors.secondaryText }}>{game.description}</p>
               <span className="game-status coming-soon">{game.status}</span>
             </div>
           )

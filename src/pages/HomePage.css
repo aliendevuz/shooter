@@ -1,10 +1,10 @@
 .home-page {
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem 1rem;
   box-sizing: border-box;
   overflow-y: auto;
+  transition: background 0.3s ease;
 }
 
 .home-header {
@@ -15,17 +15,17 @@
 
 .home-title {
   font-size: 3rem;
-  color: white;
   margin: 0;
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   font-weight: 800;
+  transition: color 0.3s ease;
 }
 
 .home-subtitle {
   font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.9);
   margin: 0.5rem 0 0 0;
   font-weight: 300;
+  transition: color 0.3s ease;
 }
 
 .games-grid {
@@ -43,7 +43,7 @@
   padding: 2rem;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
@@ -57,13 +57,13 @@
 .game-card:nth-child(3) { animation-delay: 0.3s; }
 
 .game-card:not(.disabled):hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .game-card:not(.disabled):active {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 .game-card.disabled {
@@ -82,14 +82,14 @@
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: #333;
+  transition: color 0.3s ease;
 }
 
 .game-description {
   font-size: 1rem;
-  color: #666;
   margin: 0 0 1rem 0;
   line-height: 1.5;
+  transition: color 0.3s ease;
 }
 
 .game-status {
@@ -103,8 +103,8 @@
 }
 
 .game-status.available {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  transition: background 0.3s ease;
 }
 
 .game-status.coming-soon {

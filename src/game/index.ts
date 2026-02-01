@@ -1,4 +1,4 @@
-import type { Player, GameState } from "./types";
+import type { GameState } from "./types";
 import { updatePlayer, updateEnemies, updateProjectiles, checkCollisions, renderPlayer, renderEnemies, renderProjectiles } from "./loop";
 import { keys, shootRequested, resetShootRequest, enableGyroscope } from "./input";
 

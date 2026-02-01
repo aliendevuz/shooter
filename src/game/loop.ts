@@ -15,7 +15,7 @@ export function updatePlayer(player: Player) {
   }
 }
 
-export function updateEnemies(enemies: Enemy[], gameWidth: number, gameHeight: number) {
+export function updateEnemies(enemies: Enemy[], _gameWidth: number, gameHeight: number) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const enemy = enemies[i];
     enemy.pos.y += enemy.speed;
@@ -26,7 +26,7 @@ export function updateEnemies(enemies: Enemy[], gameWidth: number, gameHeight: n
   }
 }
 
-export function updateProjectiles(projectiles: Projectile[], gameWidth: number, gameHeight: number) {
+export function updateProjectiles(projectiles: Projectile[], gameWidth: number, _gameHeight: number) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     proj.pos.x += proj.vel.x;
@@ -83,7 +83,7 @@ export function renderEnemies(container: HTMLElement, enemies: Enemy[]) {
   
   existingEnemies.forEach(el => el.remove());
   
-  enemies.forEach((enemy, index) => {
+  enemies.forEach((enemy) => {
     const el = document.createElement("div");
     el.className = "enemy";
     el.style.left = enemy.pos.x + "px";

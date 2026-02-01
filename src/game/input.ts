@@ -204,7 +204,7 @@ function setupNativeAccelerometer() {
   });
 }
 
-// Touch controls
+// Touch controls - continuous shooting while holding
 window.addEventListener("touchstart", (e: TouchEvent) => {
   e.preventDefault();
   shootRequested = true;
@@ -214,6 +214,11 @@ window.addEventListener("touchend", () => {
   shootRequested = false;
 });
 
-export function resetShootRequest() {
+window.addEventListener("touchcancel", () => {
   shootRequested = false;
+});
+
+export function resetShootRequest() {
+  // Don't reset if still touching
+  // shootRequested = false;
 }

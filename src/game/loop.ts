@@ -3,15 +3,12 @@ import { keys, tilt } from "./input";
 
 export function updatePlayer(player: Player) {
   // Keyboard controls
-  if (keys["ArrowUp"]) player.pos.y -= player.speed;
-  if (keys["ArrowDown"]) player.pos.y += player.speed;
   if (keys["ArrowLeft"]) player.pos.x -= player.speed;
   if (keys["ArrowRight"]) player.pos.x += player.speed;
   
-  // Gyroscope controls (mobile)
+  // Accelerometer controls (mobile) - only X axis
   if (tilt.enabled) {
-    player.pos.x += tilt.x * player.speed * 1.2;
-    player.pos.y += tilt.y * player.speed * 1.2;
+    player.pos.x += tilt.x * player.speed * 1.5;
   }
 }
 

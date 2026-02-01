@@ -62,6 +62,14 @@ function App() {
     startGame();
   };
 
+  const handleRestartClick = () => {
+    restartGame();
+  };
+
+  const handleDebugClick = () => {
+    setShowDebug(false);
+  };
+
   return (
     <>
       {showGyroPrompt && (
@@ -82,9 +90,9 @@ function App() {
         
         {/* Debug Panel */}
         {showDebug && (
-          <div className="debug-panel">
+          <div className="debug-panel" onClick={handleDebugClick}>
             <div className="debug-header">
-              🔧 DEBUG MODE <span className="debug-hint">(Press D to hide)</span>
+              🔧 DEBUG MODE <span className="debug-hint">(Click to hide)</span>
             </div>
             <div className="debug-row">
               <span className="debug-label">Platform:</span>
@@ -136,7 +144,9 @@ function App() {
             <h1>GAME OVER</h1>
             <p className="final-score-label">Final Score</p>
             <p id="final-score" className="final-score">0</p>
-            <p className="restart-hint">Press ENTER to restart</p>
+            <p className="restart-hint" onClick={handleRestartClick}>
+              Tap to restart
+            </p>
           </div>
         </div>
       </div>

@@ -62,51 +62,80 @@ function PingPongGame() {
     const ball: Ball = {
       x: width / 2,
       y: height / 2,
-      dx: 4,
-      dy: 4,
+      dx: (Math.random() - 0.5) * 6,
+      dy: -4,
       radius: 8
     };
 
-    // Paddles
+    // Paddles (vertical orientation - horizontal paddles)
     const playerPaddle: Paddle = {
-      x: 20,
-      y: height / 2 - 50,
-      width: 12,
-      height: 100
+      x: width / 2 - 50,
+      y: height - 32,
+      width: 100,
+      height: 12
     };
 
     const aiPaddle: Paddle = {
-      x: width - 32,
-      y: height / 2 - 50,
-      width: 12,
-      height: 100
+      x: width / 2 - 50,
+      y: 20,
+      width: 100,
+      height: 12
     };
 
     let playerScore = 0;
     let aiScore = 0;
     let animationId: number;
-    let touchY = 0;
     let isTouching = false;
+    let tiltX = 0;
+
+    // Accelerometer setup
+    const setupAccelerometer = () => {
+      const tg = (window as any).Telegram?.WebApp;
+      
+      if (tg?.Accelerometer) {
+        tg.Accelerometer.start({ refresh_rate: 60 }, (data: any) => {
+          if (data) {
+            tiltX = Math.max(-1, Math.min(1, data.x * 2));
+          }
+        });
+      } else if (window.DeviceMotionEvent) {
+        window.addEventListener("devicemotion", (e) => {
+          if (e.accelerationIncludingGravity) {
+            const x = e.accelerationIncludingGravity.x || 0;
+            tiltX = Math.max(-1, Math.min(1, x / 5));
+          }
+        });
+      }
+    };
+
+    setupAccelerometer();
 
     // Touch controls
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       isTouching = true;
       const rect = canvas.getBoundingClientRect();
-      touchY = e.touches[0].clientY - rect.top;
+      const touchX = e.touches[0].clientX - rect.left;
+      playerPaddle.x = touchX - playerPaddle.width / 2;
+      
+      // Keep paddle in bounds
+      if (playerPaddle.x < 0) playerPaddle.x = 0;
+      if (playerPaddle.x + playerPaddle.width > width) {
+        playerPaddle.x = width - playerPaddle.width;
+      }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (isTouching) {
         const rect = canvas.getBoundingClientRect();
-        touchY = e.touches[0].clientY - rect.top;
-        playerPaddle.y = touchY - playerPaddle.height / 2;
+        const touchX = e.touches[0].clientX - rect.left;
+        playerPaddle.x = touchX - playerPaddle.width / 2;
         
         // Keep paddle in bounds
-        if (playerPaddle.y < 0) playerPaddle.y = 0;
-        if (playerPaddle.y + playerPaddle.height > height) {
-          playerPaddle.y = height - playerPaddle.height;
+        if (playerPaddle.x < 0) playerPaddle.x = 0;
+        if (playerPaddle.x + playerPaddle.width > width) {
+          playerPaddle.x = width - playerPaddle.width;
         }
       }
     };
@@ -118,13 +147,13 @@ function PingPongGame() {
     // Mouse controls
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const mouseY = e.clientY - rect.top;
-      playerPaddle.y = mouseY - playerPaddle.height / 2;
+      const mouseX = e.clientX - rect.left;
+      playerPaddle.x = mouseX - playerPaddle.width / 2;
       
       // Keep paddle in bounds
-      if (playerPaddle.y < 0) playerPaddle.y = 0;
-      if (playerPaddle.y + playerPaddle.height > height) {
-        playerPaddle.y = height - playerPaddle.height;
+      if (playerPaddle.x < 0) playerPaddle.x = 0;
+      if (playerPaddle.x + playerPaddle.width > width) {
+        playerPaddle.x = width - playerPaddle.width;
       }
     };
 
@@ -156,46 +185,59 @@ function PingPongGame() {
       ctx.fillStyle = themeColors.hint;
       ctx.font = "32px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`${playerScore}`, width / 4, 50);
-      ctx.fillText(`${aiScore}`, (width * 3) / 4, 50);
+      ctx.fillText(`${aiScore}`, width / 2, 60);
+      ctx.fillText(`${playerScore}`, width / 2, height - 30);
     };
 
     const drawNet = () => {
       ctx.strokeStyle = themeColors.hint;
       ctx.setLineDash([5, 10]);
       ctx.beginPath();
-      ctx.moveTo(width / 2, 0);
-      ctx.lineTo(width / 2, height);
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
       ctx.stroke();
       ctx.setLineDash([]);
     };
 
     // AI movement
     const moveAI = () => {
-      const aiCenter = aiPaddle.y + aiPaddle.height / 2;
+      const aiCenter = aiPaddle.x + aiPaddle.width / 2;
       const aiSpeed = 3.5;
 
-      if (ball.dx > 0) {
+      if (ball.dy < 0) {
         // Ball moving towards AI
-        if (aiCenter < ball.y - 10) {
-          aiPaddle.y += aiSpeed;
-        } else if (aiCenter > ball.y + 10) {
-          aiPaddle.y -= aiSpeed;
+        if (aiCenter < ball.x - 10) {
+          aiPaddle.x += aiSpeed;
+        } else if (aiCenter > ball.x + 10) {
+          aiPaddle.x -= aiSpeed;
         }
       } else {
         // Ball moving away, return to center
-        const centerY = height / 2 - aiPaddle.height / 2;
-        if (aiPaddle.y < centerY - 2) {
-          aiPaddle.y += aiSpeed * 0.5;
-        } else if (aiPaddle.y > centerY + 2) {
-          aiPaddle.y -= aiSpeed * 0.5;
+        const centerX = width / 2 - aiPaddle.width / 2;
+        if (aiPaddle.x < centerX - 2) {
+          aiPaddle.x += aiSpeed * 0.5;
+        } else if (aiPaddle.x > centerX + 2) {
+          aiPaddle.x -= aiSpeed * 0.5;
         }
       }
 
       // Keep AI paddle in bounds
-      if (aiPaddle.y < 0) aiPaddle.y = 0;
-      if (aiPaddle.y + aiPaddle.height > height) {
-        aiPaddle.y = height - aiPaddle.height;
+      if (aiPaddle.x < 0) aiPaddle.x = 0;
+      if (aiPaddle.x + aiPaddle.width > width) {
+        aiPaddle.x = width - aiPaddle.width;
+      }
+    };
+
+    // Player movement (accelerometer)
+    const movePlayer = () => {
+      if (!isTouching && tiltX !== 0) {
+        playerPaddle.x += tiltX * 8;
+        
+        // Keep paddle in bounds
+        if (playerPaddle.x < 0) playerPaddle.x = 0;
+        if (playerPaddle.x + playerPaddle.width > width) {
+          playerPaddle.x = width - playerPaddle.width;
+        }
       }
     };
 
@@ -204,37 +246,37 @@ function PingPongGame() {
       ball.x += ball.dx;
       ball.y += ball.dy;
 
-      // Top and bottom collision
-      if (ball.y - ball.radius < 0 || ball.y + ball.radius > height) {
+      // Left and right collision
+      if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
+        ball.dx = -ball.dx;
+      }
+
+      // Player paddle collision (bottom)
+      if (
+        ball.y + ball.radius > playerPaddle.y &&
+        ball.x > playerPaddle.x &&
+        ball.x < playerPaddle.x + playerPaddle.width &&
+        ball.dy > 0
+      ) {
         ball.dy = -ball.dy;
+        const hitPos = (ball.x - (playerPaddle.x + playerPaddle.width / 2)) / (playerPaddle.width / 2);
+        ball.dx = hitPos * 5;
       }
 
-      // Player paddle collision
+      // AI paddle collision (top)
       if (
-        ball.x - ball.radius < playerPaddle.x + playerPaddle.width &&
-        ball.y > playerPaddle.y &&
-        ball.y < playerPaddle.y + playerPaddle.height &&
-        ball.dx < 0
+        ball.y - ball.radius < aiPaddle.y + aiPaddle.height &&
+        ball.x > aiPaddle.x &&
+        ball.x < aiPaddle.x + aiPaddle.width &&
+        ball.dy < 0
       ) {
-        ball.dx = -ball.dx;
-        const hitPos = (ball.y - (playerPaddle.y + playerPaddle.height / 2)) / (playerPaddle.height / 2);
-        ball.dy = hitPos * 5;
+        ball.dy = -ball.dy;
+        const hitPos = (ball.x - (aiPaddle.x + aiPaddle.width / 2)) / (aiPaddle.width / 2);
+        ball.dx = hitPos * 5;
       }
 
-      // AI paddle collision
-      if (
-        ball.x + ball.radius > aiPaddle.x &&
-        ball.y > aiPaddle.y &&
-        ball.y < aiPaddle.y + aiPaddle.height &&
-        ball.dx > 0
-      ) {
-        ball.dx = -ball.dx;
-        const hitPos = (ball.y - (aiPaddle.y + aiPaddle.height / 2)) / (aiPaddle.height / 2);
-        ball.dy = hitPos * 5;
-      }
-
-      // Score
-      if (ball.x - ball.radius < 0) {
+      // Score - AI wins if ball goes past bottom
+      if (ball.y + ball.radius > height) {
         aiScore++;
         resetBall();
         if (aiScore >= 5) {
@@ -243,7 +285,8 @@ function PingPongGame() {
         }
       }
 
-      if (ball.x + ball.radius > width) {
+      // Player wins if ball goes past top
+      if (ball.y - ball.radius < 0) {
         playerScore++;
         resetBall();
         if (playerScore >= 5) {
@@ -258,8 +301,8 @@ function PingPongGame() {
     const resetBall = () => {
       ball.x = width / 2;
       ball.y = height / 2;
-      ball.dx = (Math.random() > 0.5 ? 1 : -1) * 4;
-      ball.dy = (Math.random() - 0.5) * 6;
+      ball.dx = (Math.random() - 0.5) * 6;
+      ball.dy = (Math.random() > 0.5 ? 1 : -1) * 4;
     };
 
     // Game loop
@@ -274,6 +317,7 @@ function PingPongGame() {
       
       updateBall();
       moveAI();
+      movePlayer();
       
       animationId = requestAnimationFrame(gameLoop);
     };
@@ -329,7 +373,7 @@ function PingPongGame() {
         )}
         
         <div className="pingpong-instructions" style={{ color: themeColors.hint }}>
-          Touch or move mouse to control left paddle • First to 5 wins
+          Tilt device or touch/move mouse • First to 5 wins
         </div>
       </div>
     </div>

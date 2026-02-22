@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metaball Arena - Eat or Escape</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0a;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      cursor: none;
+    }
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+      color: white;
+      padding: 20px;
+    }
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 24px;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+    }
+    .score {
+      color: #00ffff;
+      font-weight: bold;
+    }
+    .size {
+      color: #ff00ff;
+      font-weight: bold;
+    }
+    .kills {
+      color: #ff0000;
+      font-weight: bold;
+    }
+    .minimap {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 150px;
+      height: 150px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid rgba(0, 255, 255, 0.5);
+      border-radius: 10px;
+    }
+    #gameOver {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      padding: 40px 60px;
+      border-radius: 20px;
+      border: 3px solid #00ffff;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 40px rgba(0, 255, 255, 0.5);
+    }
+    #gameOver h1 {
+      color: #00ffff;
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+    }
+    #gameOver .final-score {
+      color: #ff00ff;
+      font-size: 36px;
+      margin: 20px 0;
+    }
+    #gameOver button {
+      background: linear-gradient(135deg, #00ffff, #ff00ff);
+      border: none;
+      color: white;
+      padding: 15px 40px;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 20px;
+      pointer-events: all;
+      transition: transform 0.2s;
+    }
+    #gameOver button:hover {
+      transform: scale(1.05);
+    }
+    #gameOver button:active {
+      transform: scale(0.95);
+    }
+    .instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      text-align: center;
+    }
+    #minimapCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <div class="hud">
+    <div class="score">Score: <span id="scoreValue">0</span></div>
+    <div class="kills">Kills: <span id="killsValue">0</span></div>
+    <div class="size">Size: <span id="sizeValue">1.0</span>x</div>
+  </div>
+  <div class="minimap">
+    <canvas id="minimapCanvas" width="150" height="150"></canvas>
+  </div>
+</div>
+
+<div id="gameOver">
+  <h1>GAME OVER!</h1>
+  <div class="final-score">Score: <span id="finalScore">0</span></div>
+  <div style="color: #ff0000; font-size: 18px; margin: 10px 0;">
+    Kills: <span id="finalKills">0</span>
+  </div>
+  <div style="color: #ffff00; font-size: 16px; margin: 5px 0;">
+    Survived: <span id="survivalTime">0</span>s
+  </div>
+  <button onclick="restartGame()">Play Again</button>
+</div>
+
+<div class="instructions">
+  Arrow Keys to steer • Always moving • Eat smaller metaballs • Escape from bigger ones!
+</div>
+
+<script type="text/javascript">
+// --- WebGL Setup ---
+function createShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
+}
+
+function createProgram(gl, vertexShader, fragmentShader) {
+  const program = gl.createProgram();
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(program));
+    return null;
+  }
+  return program;
+}
+
+const vertexShaderSrc = `
+attribute vec2 a_position;
+void main() {
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
+
+const fragmentShaderSrc = `
+precision highp float;
+
+uniform float iTime;
+uniform vec2 iResolution;
+uniform vec2 cameraPos;
+uniform float cameraZoom;
+uniform vec2 playerPos;
+uniform float playerRadius;
+uniform vec2 ballPositions[30];
+uniform float ballRadii[30];
+uniform float ballTypes[30];
+uniform int numBalls;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / iResolution.xy;
+    
+    // Apply camera transform
+    vec2 worldUV = cameraPos + (uv - 0.5) / cameraZoom;
+    
+    float threshold = 1.0;
+    float playerValue = 0.0;
+    float enemyValue = 0.0;
+    float foodValue = 0.0;
+    
+    // Player ball
+    float pd = length(worldUV - playerPos) + 0.0001;
+    playerValue = (playerRadius * playerRadius) / (pd * pd);
+    
+    // Other balls
+    for(int i = 0; i < 30; i++){
+        if(i >= numBalls) break;
+        float d = length(worldUV - ballPositions[i]) + 0.0001;
+        float contribution = (ballRadii[i] * ballRadii[i]) / (d * d);
+        
+        if(ballTypes[i] < 0.5) {
+            enemyValue += contribution;
+        } else {
+            foodValue += contribution;
+        }
+    }
+    
+    float totalValue = playerValue + enemyValue + foodValue;
+    float alpha = smoothstep(threshold-0.02, threshold, totalValue);
+    
+    // Individual glows
+    float playerGlow = smoothstep(threshold-0.02, threshold, playerValue);
+    float enemyGlow = smoothstep(threshold-0.02, threshold, enemyValue);
+    float foodGlow = smoothstep(threshold-0.02, threshold, foodValue);
+    
+    // Colors
+    vec3 playerCol = vec3(0.0, 1.0, 1.0) * playerGlow;
+    vec3 enemyCol = vec3(1.0, 0.2, 0.2) * enemyGlow;
+    vec3 foodCol = vec3(0.2, 1.0, 0.2) * foodGlow;
+    
+    vec3 col = playerCol + enemyCol * (1.0 - playerGlow) + foodCol * (1.0 - playerGlow - enemyGlow);
+    col *= alpha;
+    
+    // Grid background
+    vec2 grid = fract(worldUV * 10.0);
+    float gridLine = smoothstep(0.98, 1.0, max(grid.x, grid.y));
+    col += vec3(0.1, 0.1, 0.15) * gridLine * (1.0 - alpha);
+    
+    gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+gl.viewport(0, 0, canvas.width, canvas.height);
+
+const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSrc);
+const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSrc);
+const program = createProgram(gl, vertexShader, fragmentShader);
+gl.useProgram(program);
+
+// Quad
+const positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+  -1, -1, 1, -1, -1, 1,
+  -1, 1, 1, -1, 1, 1
+]), gl.STATIC_DRAW);
+
+const positionLocation = gl.getAttribLocation(program, "a_position");
+gl.enableVertexAttribArray(positionLocation);
+gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+// Uniforms
+const iTimeLoc = gl.getUniformLocation(program, "iTime");
+const iResLoc = gl.getUniformLocation(program, "iResolution");
+const cameraPosLoc = gl.getUniformLocation(program, "cameraPos");
+const cameraZoomLoc = gl.getUniformLocation(program, "cameraZoom");
+const playerPosLoc = gl.getUniformLocation(program, "playerPos");
+const playerRadiusLoc = gl.getUniformLocation(program, "playerRadius");
+const ballPositionsLoc = gl.getUniformLocation(program, "ballPositions");
+const ballRadiiLoc = gl.getUniformLocation(program, "ballRadii");
+const ballTypesLoc = gl.getUniformLocation(program, "ballTypes");
+const numBallsLoc = gl.getUniformLocation(program, "numBalls");
+
+// --- Game State ---
+const WORLD_SIZE = 3.0;
+const MAX_ENEMIES = 15;
+const MAX_FOOD = 15;
+
+let gameState = {
+  playing: true,
+  score: 0,
+  kills: 0,
+  startTime: Date.now(),
+  camera: {
+    x: 0.5,
+    y: 0.5,
+    zoom: 1.5
+  },
+  player: {
+    x: WORLD_SIZE / 2,
+    y: WORLD_SIZE / 2,
+    radius: 0.05,
+    angle: 0,
+    speed: 0.08,
+    rotationSpeed: 0,
+    vx: 0,
+    vy: 0
+  },
+  enemies: [],
+  food: []
+};
+
+function initEntities() {
+  gameState.enemies = [];
+  gameState.food = [];
+  
+  for(let i = 0; i < MAX_ENEMIES; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    gameState.enemies.push({
+      x: Math.random() * WORLD_SIZE,
+      y: Math.random() * WORLD_SIZE,
+      radius: 0.03 + Math.random() * 0.06,
+      angle: angle,
+      speed: 0.05 + Math.random() * 0.04,
+      vx: 0,
+      vy: 0,
+      targetX: Math.random() * WORLD_SIZE,
+      targetY: Math.random() * WORLD_SIZE,
+      alive: true,
+      type: 'enemy'
+    });
+  }
+  
+  for(let i = 0; i < MAX_FOOD; i++) {
+    gameState.food.push({
+      x: Math.random() * WORLD_SIZE,
+      y: Math.random() * WORLD_SIZE,
+      radius: 0.02 + Math.random() * 0.015,
+      alive: true,
+      type: 'food'
+    });
+  }
+}
+
+initEntities();
+
+// Keyboard control
+const keys = {
+  ArrowLeft: false,
+  ArrowRight: false,
+  ArrowUp: false,
+  ArrowDown: false
+};
+
+window.addEventListener('keydown', (e) => {
+  if (keys.hasOwnProperty(e.key)) {
+    e.preventDefault();
+    keys[e.key] = true;
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (keys.hasOwnProperty(e.key)) {
+    e.preventDefault();
+    keys[e.key] = false;
+  }
+});
+
+// Game logic
+function updateGame(deltaTime) {
+  if (!gameState.playing) return;
+  
+  const dt = Math.min(deltaTime, 0.05);
+  
+  // Player rotation control
+  const rotationAccel = 0.15;
+  const rotationDamping = 0.92;
+  
+  if (keys.ArrowLeft) {
+    gameState.player.rotationSpeed -= rotationAccel * dt * 60;
+  }
+  if (keys.ArrowRight) {
+    gameState.player.rotationSpeed += rotationAccel * dt * 60;
+  }
+  
+  gameState.player.rotationSpeed *= rotationDamping;
+  gameState.player.angle += gameState.player.rotationSpeed * dt * 60;
+  
+  // Player always moves in the direction of angle
+  const baseSpeed = gameState.player.speed / Math.sqrt(gameState.player.radius / 0.05);
+  gameState.player.vx = Math.cos(gameState.player.angle) * baseSpeed;
+  gameState.player.vy = Math.sin(gameState.player.angle) * baseSpeed;
+  
+  gameState.player.x += gameState.player.vx * dt * 60;
+  gameState.player.y += gameState.player.vy * dt * 60;
+  
+  gameState.player.x = Math.max(gameState.player.radius, Math.min(WORLD_SIZE - gameState.player.radius, gameState.player.x));
+  gameState.player.y = Math.max(gameState.player.radius, Math.min(WORLD_SIZE - gameState.player.radius, gameState.player.y));
+  
+  // Camera follow
+  gameState.camera.x = gameState.player.x / WORLD_SIZE;
+  gameState.camera.y = gameState.player.y / WORLD_SIZE;
+  gameState.camera.zoom = 1.5 / (1 + gameState.player.radius * 3);
+  
+  // Update enemies
+  for(let enemy of gameState.enemies) {
+    if (!enemy.alive) continue;
+    
+    const edx = gameState.player.x - enemy.x;
+    const edy = gameState.player.y - enemy.y;
+    const eDist = Math.sqrt(edx * edx + edy * edy);
+    
+    if (eDist < 0.4) {
+      if (enemy.radius > gameState.player.radius * 1.2) {
+        enemy.targetX = gameState.player.x;
+        enemy.targetY = gameState.player.y;
+      } else if (enemy.radius < gameState.player.radius * 0.8) {
+        enemy.targetX = enemy.x - edx;
+        enemy.targetY = enemy.y - edy;
+      }
+    } else {
+      if (Math.random() < 0.01) {
+        enemy.targetX = Math.random() * WORLD_SIZE;
+        enemy.targetY = Math.random() * WORLD_SIZE;
+      }
+    }
+    
+    const tdx = enemy.targetX - enemy.x;
+    const tdy = enemy.targetY - enemy.y;
+    const tDist = Math.sqrt(tdx * tdx + tdy * tdy);
+    
+    if (tDist > 0.01) {
+      const targetAngle = Math.atan2(tdy, tdx);
+      let angleDiff = targetAngle - enemy.angle;
+      
+      // Normalize angle difference to [-PI, PI]
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      
+      // Smooth rotation towards target
+      const rotationSpeed = 0.05;
+      enemy.angle += angleDiff * rotationSpeed;
+    }
+    
+    // Move in current angle direction
+    const baseSpeed = enemy.speed / Math.sqrt(enemy.radius / 0.05);
+    enemy.vx = Math.cos(enemy.angle) * baseSpeed;
+    enemy.vy = Math.sin(enemy.angle) * baseSpeed;
+    
+    enemy.x += enemy.vx * dt * 60;
+    enemy.y += enemy.vy * dt * 60;
+    
+    if (enemy.x < enemy.radius || enemy.x > WORLD_SIZE - enemy.radius) {
+      enemy.vx *= -1;
+      enemy.x = Math.max(enemy.radius, Math.min(WORLD_SIZE - enemy.radius, enemy.x));
+    }
+    if (enemy.y < enemy.radius || enemy.y > WORLD_SIZE - enemy.radius) {
+      enemy.vy *= -1;
+      enemy.y = Math.max(enemy.radius, Math.min(WORLD_SIZE - enemy.radius, enemy.y));
+    }
+    
+    if (eDist < gameState.player.radius + enemy.radius) {
+      if (gameState.player.radius > enemy.radius * 1.1) {
+        enemy.alive = false;
+        gameState.player.radius += enemy.radius * 0.4;
+        gameState.score += Math.floor(enemy.radius * 2000);
+        gameState.kills++;
+        document.getElementById('killsValue').textContent = gameState.kills;
+      } else if (enemy.radius > gameState.player.radius * 1.1) {
+        endGame();
+        return;
+      }
+    }
+  }
+  
+  // Check food
+  for(let food of gameState.food) {
+    if (!food.alive) continue;
+    
+    const fdx = gameState.player.x - food.x;
+    const fdy = gameState.player.y - food.y;
+    const fDist = Math.sqrt(fdx * fdx + fdy * fdy);
+    
+    if (fDist < gameState.player.radius + food.radius) {
+      food.alive = false;
+      gameState.player.radius += food.radius * 0.2;
+      gameState.score += Math.floor(food.radius * 500);
+    }
+  }
+  
+  // Respawn
+  const aliveEnemies = gameState.enemies.filter(e => e.alive).length;
+  if (aliveEnemies < MAX_ENEMIES * 0.5) {
+    for(let i = 0; i < 3; i++) {
+      const spawnAngle = Math.random() * Math.PI * 2;
+      const distance = 1.5 + Math.random();
+      const enemyAngle = Math.random() * Math.PI * 2;
+      gameState.enemies.push({
+        x: gameState.player.x + Math.cos(spawnAngle) * distance,
+        y: gameState.player.y + Math.sin(spawnAngle) * distance,
+        radius: 0.03 + Math.random() * 0.06,
+        angle: enemyAngle,
+        speed: 0.05 + Math.random() * 0.04,
+        vx: 0,
+        vy: 0,
+        targetX: Math.random() * WORLD_SIZE,
+        targetY: Math.random() * WORLD_SIZE,
+        alive: true,
+        type: 'enemy'
+      });
+    }
+  }
+  
+  const aliveFood = gameState.food.filter(f => f.alive).length;
+  if (aliveFood < MAX_FOOD * 0.5) {
+    for(let i = 0; i < 5; i++) {
+      gameState.food.push({
+        x: Math.random() * WORLD_SIZE,
+        y: Math.random() * WORLD_SIZE,
+        radius: 0.02 + Math.random() * 0.015,
+        alive: true,
+        type: 'food'
+      });
+    }
+  }
+  
+  document.getElementById('scoreValue').textContent = gameState.score;
+  document.getElementById('sizeValue').textContent = (gameState.player.radius / 0.05).toFixed(1);
+}
+
+function endGame() {
+  gameState.playing = false;
+  const survivalTime = Math.floor((Date.now() - gameState.startTime) / 1000);
+  document.getElementById('finalScore').textContent = gameState.score;
+  document.getElementById('finalKills').textContent = gameState.kills;
+  document.getElementById('survivalTime').textContent = survivalTime;
+  document.getElementById('gameOver').style.display = 'block';
+}
+
+function restartGame() {
+  gameState = {
+    playing: true,
+    score: 0,
+    kills: 0,
+    startTime: Date.now(),
+    camera: {
+      x: 0.5,
+      y: 0.5,
+      zoom: 1.5
+    },
+    player: {
+      x: WORLD_SIZE / 2,
+      y: WORLD_SIZE / 2,
+      radius: 0.05,
+      angle: 0,
+      speed: 0.08,
+      rotationSpeed: 0,
+      vx: 0,
+      vy: 0
+    },
+    enemies: [],
+    food: []
+  };
+  initEntities();
+  document.getElementById('scoreValue').textContent = '0';
+  document.getElementById('killsValue').textContent = '0';
+  document.getElementById('sizeValue').textContent = '1.0';
+  document.getElementById('gameOver').style.display = 'none';
+}
+
+// Minimap
+function drawMinimap() {
+  const minimapCanvas = document.getElementById('minimapCanvas');
+  const ctx = minimapCanvas.getContext('2d');
+  const size = 150;
+  
+  ctx.clearRect(0, 0, size, size);
+  
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+  ctx.strokeRect(0, 0, size, size);
+  
+  ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+  for(let food of gameState.food) {
+    if (!food.alive) continue;
+    const x = (food.x / WORLD_SIZE) * size;
+    const y = (food.y / WORLD_SIZE) * size;
+    ctx.beginPath();
+    ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  for(let enemy of gameState.enemies) {
+    if (!enemy.alive) continue;
+    const x = (enemy.x / WORLD_SIZE) * size;
+    const y = (enemy.y / WORLD_SIZE) * size;
+    const r = Math.max(2, enemy.radius * 30);
+    
+    if (enemy.radius > gameState.player.radius * 1.1) {
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+    } else {
+      ctx.fillStyle = 'rgba(255, 100, 100, 0.6)';
+    }
+    
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  const px = (gameState.player.x / WORLD_SIZE) * size;
+  const py = (gameState.player.y / WORLD_SIZE) * size;
+  const pr = Math.max(3, gameState.player.radius * 30);
+  
+  ctx.fillStyle = 'rgba(0, 255, 255, 1)';
+  ctx.beginPath();
+  ctx.arc(px, py, pr, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// Render loop
+let lastFrameTime = performance.now();
+
+function render(time) {
+  time *= 0.001;
+  const now = performance.now();
+  const deltaTime = (now - lastFrameTime) / 1000;
+  lastFrameTime = now;
+  
+  updateGame(deltaTime);
+  drawMinimap();
+  
+  gl.uniform1f(iTimeLoc, time);
+  gl.uniform2f(iResLoc, canvas.width, canvas.height);
+  gl.uniform2f(cameraPosLoc, gameState.camera.x, gameState.camera.y);
+  gl.uniform1f(cameraZoomLoc, gameState.camera.zoom);
+  gl.uniform2f(playerPosLoc, gameState.player.x / WORLD_SIZE, gameState.player.y / WORLD_SIZE);
+  gl.uniform1f(playerRadiusLoc, gameState.player.radius);
+  
+  const positions = [];
+  const radii = [];
+  const types = [];
+  let count = 0;
+  
+  for(let enemy of gameState.enemies) {
+    if (enemy.alive && count < 30) {
+      positions.push(enemy.x / WORLD_SIZE, enemy.y / WORLD_SIZE);
+      radii.push(enemy.radius);
+      types.push(0.0);
+      count++;
+    }
+  }
+  
+  for(let food of gameState.food) {
+    if (food.alive && count < 30) {
+      positions.push(food.x / WORLD_SIZE, food.y / WORLD_SIZE);
+      radii.push(food.radius);
+      types.push(1.0);
+      count++;
+    }
+  }
+  
+  while(count < 30) {
+    positions.push(0, 0);
+    radii.push(0);
+    types.push(0);
+    count++;
+  }
+  
+  gl.uniform2fv(ballPositionsLoc, positions);
+  gl.uniform1fv(ballRadiiLoc, radii);
+  gl.uniform1fv(ballTypesLoc, types);
+  gl.uniform1i(numBallsLoc, gameState.enemies.filter(e => e.alive).length + gameState.food.filter(f => f.alive).length);
+  
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  requestAnimationFrame(render);
+}
+
+requestAnimationFrame(render);
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+});
+</script>
+</body>
+</html>

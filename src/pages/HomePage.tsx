@@ -52,6 +52,14 @@ function HomePage() {
       status: "Available"
     },
     {
+      id: "brick",
+      title: "Brick Game",
+      description: "Classic Brick Game",
+      icon: "🧱",
+      route: "/brick",
+      status: "Available"
+    },
+    {
       id: "puzzle",
       title: "Puzzle Challenge",
       description: "Coming soon...",
@@ -66,6 +74,11 @@ function HomePage() {
       <div className="home-header">
         <h1 className="home-title" style={{ color: themeColors.text }}>🎮 WebGames</h1>
         <p className="home-subtitle" style={{ color: themeColors.secondaryText }}>Choose your game</p>
+      </div>
+
+      <div>
+        <h2>Platformer Game:</h2>
+        <a href="https://platformer-game-alien.netlify.app/">Bounce Taler</a>
       </div>
       
       <div className="games-grid">

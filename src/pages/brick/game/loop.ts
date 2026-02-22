@@ -1,4 +1,4 @@
-import type { GameState, Player, Ball, Brick } from "./types";
+import type { GameState } from "./types";
 import { isKeyDown } from "./input";
 
 export function update(state: GameState) {
